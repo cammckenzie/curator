@@ -16,9 +16,11 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.BackgroundCallback;
 import org.apache.curator.framework.api.CuratorEvent;
@@ -35,6 +37,7 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
@@ -446,6 +449,16 @@ public class PathChildrenCache implements Closeable
     {
         return ImmutableList.copyOf(Sets.<ChildData>newTreeSet(currentData.values()));
     }
+    
+    /**
+     * Get a map representation of the current data. There are no guarantees of accuracy.
+     * This is merely the most recent view of the data.
+     * @return
+     */
+    public Map<String, ChildData> getCurrentDataMap()
+    {
+        return ImmutableMap.copyOf(currentData);
+    }
 
     /**
      * Return the current data for the given path. There are no guarantees of accuracy. This is
@@ -560,15 +573,6 @@ public class PathChildrenCache implements Closeable
 
         if ( USE_EXISTS && !cacheData )
         {
-            /*
-            @Override
-            public void processResult(CuratorFramework client, CuratorEvent event) throws Exception
-            {
-                applyNewData(fullPath, event.getResultCode(), event.getStat(), event.getData());
-            }
-        };
-
-        if ( cacheData )*/
             client.checkExists().usingWatcher(dataWatcher).inBackground(callback).forPath(fullPath);
         }
         else
