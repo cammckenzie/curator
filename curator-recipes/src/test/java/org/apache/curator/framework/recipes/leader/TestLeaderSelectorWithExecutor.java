@@ -18,10 +18,10 @@
  */
 package org.apache.curator.framework.recipes.leader;
 
-import com.google.common.io.Closeables;
+import org.apache.curator.test.BaseClassForTests;
+import org.apache.curator.utils.CloseableUtils;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.recipes.BaseClassForTests;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.curator.test.Timing;
@@ -65,8 +65,8 @@ public class TestLeaderSelectorWithExecutor extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(leaderSelector);
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(leaderSelector);
+            CloseableUtils.closeQuietly(client);
         }
     }
 

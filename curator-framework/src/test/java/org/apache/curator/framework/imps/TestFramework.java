@@ -19,7 +19,6 @@
 package org.apache.curator.framework.imps;
 
 import com.google.common.collect.Lists;
-import com.google.common.io.Closeables;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.api.BackgroundCallback;
@@ -29,8 +28,9 @@ import org.apache.curator.framework.api.CuratorListener;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.framework.state.ConnectionStateListener;
 import org.apache.curator.retry.RetryOneTime;
-import org.apache.curator.test.TestingServer;
+import org.apache.curator.test.BaseClassForTests;
 import org.apache.curator.test.Timing;
+import org.apache.curator.utils.CloseableUtils;
 import org.apache.curator.utils.EnsurePath;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -76,7 +76,7 @@ public class TestFramework extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -265,7 +265,7 @@ public class TestFramework extends BaseClassForTests
                 // expected
             }
 
-            server = new TestingServer(server.getPort(), server.getTempDirectory());
+            server.restart();
             try
             {
                 client.setData().forPath("/test", "test".getBytes());
@@ -277,7 +277,7 @@ public class TestFramework extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(client);
         }
     }
 

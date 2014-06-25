@@ -19,10 +19,10 @@
 package org.apache.curator.framework.recipes.locks;
 
 import com.google.common.collect.Lists;
-import com.google.common.io.Closeables;
+import org.apache.curator.test.BaseClassForTests;
+import org.apache.curator.utils.CloseableUtils;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.recipes.BaseClassForTests;
 import org.apache.curator.retry.RetryOneTime;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -100,7 +100,7 @@ public class TestInterProcessReadWriteLock extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -120,7 +120,7 @@ public class TestInterProcessReadWriteLock extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -171,7 +171,7 @@ public class TestInterProcessReadWriteLock extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -192,7 +192,7 @@ public class TestInterProcessReadWriteLock extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -240,7 +240,7 @@ public class TestInterProcessReadWriteLock extends BaseClassForTests
                         }
                         finally
                         {
-                            Closeables.closeQuietly(client);
+                            CloseableUtils.closeQuietly(client);
                         }
                         return null;
                     }

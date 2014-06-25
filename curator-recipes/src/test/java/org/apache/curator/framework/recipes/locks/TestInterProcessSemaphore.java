@@ -20,10 +20,10 @@
 package org.apache.curator.framework.recipes.locks;
 
 import com.google.common.collect.Lists;
-import com.google.common.io.Closeables;
+import org.apache.curator.test.BaseClassForTests;
+import org.apache.curator.utils.CloseableUtils;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.recipes.BaseClassForTests;
 import org.apache.curator.framework.recipes.shared.SharedCount;
 import org.apache.curator.retry.RetryOneTime;
 import org.apache.curator.test.Timing;
@@ -61,7 +61,8 @@ public class TestInterProcessSemaphore extends BaseClassForTests
 
             ExecutorService service = Executors.newCachedThreadPool();
 
-            final CountDownLatch latch = new CountDownLatch(1);
+            final CountDownLatch latch1 = new CountDownLatch(1);
+            final CountDownLatch latch2 = new CountDownLatch(1);
             Future<Object> future1 = service.submit
                 (
                     new Callable<Object>()
@@ -71,9 +72,10 @@ public class TestInterProcessSemaphore extends BaseClassForTests
                         {
                             Lease lease = semaphore.acquire(timing.seconds(), TimeUnit.SECONDS);
                             Assert.assertNotNull(lease);
-                            latch.countDown();
+                            latch1.countDown();
                             lease = semaphore.acquire(timing.forWaiting().seconds(), TimeUnit.SECONDS);
                             Assert.assertNotNull(lease);
+                            latch2.countDown();
                             return null;
                         }
                     }
@@ -85,9 +87,12 @@ public class TestInterProcessSemaphore extends BaseClassForTests
                         @Override
                         public Object call() throws Exception
                         {
-                            Assert.assertTrue(latch.await(timing.forWaiting().seconds(), TimeUnit.SECONDS));
+                            Assert.assertTrue(latch1.await(timing.forWaiting().seconds(), TimeUnit.SECONDS));
                             timing.sleepABit(); // make sure second acquire is waiting
                             Assert.assertTrue(count.trySetCount(2));
+                            //Make sure second acquire takes less than full waiting time:
+                            timing.sleepABit();
+                            Assert.assertTrue(latch2.await(0, TimeUnit.SECONDS));
                             return null;
                         }
                     }
@@ -98,7 +103,7 @@ public class TestInterProcessSemaphore extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -112,8 +117,8 @@ public class TestInterProcessSemaphore extends BaseClassForTests
         InterProcessSemaphoreV2 semaphore2;
         try
         {
-            client1 = CuratorFrameworkFactory.newClient(server.getConnectString(), new RetryOneTime(1));
-            client2 = CuratorFrameworkFactory.newClient(server.getConnectString(), new RetryOneTime(1));
+            client1 = CuratorFrameworkFactory.newClient(server.getConnectString(), timing.session(), timing.connection(), new RetryOneTime(1));
+            client2 = CuratorFrameworkFactory.newClient(server.getConnectString(), timing.session(), timing.connection(), new RetryOneTime(1));
 
             client1.start();
             client2.start();
@@ -135,8 +140,8 @@ public class TestInterProcessSemaphore extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(client1);
-            Closeables.closeQuietly(client2);
+            CloseableUtils.closeQuietly(client1);
+            CloseableUtils.closeQuietly(client2);
         }
     }
 
@@ -265,7 +270,7 @@ public class TestInterProcessSemaphore extends BaseClassForTests
                         @Override
                         public Object call() throws Exception
                         {
-                            CuratorFramework client = CuratorFrameworkFactory.newClient(server.getConnectString(), new RetryOneTime(1));
+                            CuratorFramework client = CuratorFrameworkFactory.newClient(server.getConnectString(), timing.session(), timing.connection(), new RetryOneTime(1));
                             client.start();
                             try
                             {
@@ -319,7 +324,7 @@ public class TestInterProcessSemaphore extends BaseClassForTests
         final int MAX_LEASES = 11;
         final int THREADS = 100;
 
-        final CuratorFramework client = CuratorFrameworkFactory.newClient(server.getConnectString(), new RetryOneTime(1));
+        final CuratorFramework client = CuratorFrameworkFactory.newClient(server.getConnectString(), timing.session(), timing.connection(), new RetryOneTime(1));
         client.start();
         try
         {
@@ -385,6 +390,7 @@ public class TestInterProcessSemaphore extends BaseClassForTests
                 completionService.take();
             }
 
+            timing.sleepABit();
             synchronized(counter)
             {
                 Assert.assertTrue(counter.currentCount == 0);
@@ -404,7 +410,8 @@ public class TestInterProcessSemaphore extends BaseClassForTests
     {
         final int THREAD_QTY = 10;
 
-        CuratorFramework client = CuratorFrameworkFactory.newClient(server.getConnectString(), new RetryOneTime(1));
+        Timing timing = new Timing();
+        CuratorFramework client = CuratorFrameworkFactory.newClient(server.getConnectString(), timing.session(), timing.connection(), new RetryOneTime(1));
         client.start();
         try
         {
@@ -446,7 +453,7 @@ public class TestInterProcessSemaphore extends BaseClassForTests
     public void testSimple() throws Exception
     {
         Timing timing = new Timing();
-        CuratorFramework client = CuratorFrameworkFactory.newClient(server.getConnectString(), new RetryOneTime(1));
+        CuratorFramework client = CuratorFrameworkFactory.newClient(server.getConnectString(), timing.session(), timing.connection(), new RetryOneTime(1));
         client.start();
         try
         {
@@ -466,11 +473,11 @@ public class TestInterProcessSemaphore extends BaseClassForTests
         final int MAX_LEASES = 3;
         Timing timing = new Timing();
 
-        CuratorFramework client = CuratorFrameworkFactory.newClient(server.getConnectString(), new RetryOneTime(1));
+        List<Lease> leases = Lists.newArrayList();
+        CuratorFramework client = CuratorFrameworkFactory.newClient(server.getConnectString(), timing.session(), timing.connection(), new RetryOneTime(1));
         client.start();
         try
         {
-            List<Lease> leases = Lists.newArrayList();
             for ( int i = 0; i < MAX_LEASES; ++i )
             {
                 InterProcessSemaphoreV2 semaphore = new InterProcessSemaphoreV2(client, "/test", MAX_LEASES);
@@ -488,7 +495,11 @@ public class TestInterProcessSemaphore extends BaseClassForTests
         }
         finally
         {
-            client.close();
+            for ( Lease l : leases )
+            {
+                CloseableUtils.closeQuietly(l);
+            }
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -497,21 +508,27 @@ public class TestInterProcessSemaphore extends BaseClassForTests
     {
         final int LEASES = 3;
 
-        CuratorFramework client = CuratorFrameworkFactory.newClient(server.getConnectString(), new RetryOneTime(1));
+        Timing timing = new Timing();
+        CuratorFramework client = CuratorFrameworkFactory.newClient(server.getConnectString(), timing.session(), timing.connection(), new RetryOneTime(1));
+        List<Lease> leases = Lists.newArrayList();
         client.start();
         try
         {
             InterProcessSemaphoreV2 semaphore = new InterProcessSemaphoreV2(client, "/test", LEASES);
             for ( int i = 0; i < LEASES; ++i )
             {
-                semaphore.acquire();
+                leases.add(semaphore.acquire());
             }
 
             Assert.assertEquals(semaphore.getParticipantNodes().size(), LEASES);
         }
         finally
         {
-            Closeables.closeQuietly(client);
+            for ( Lease l : leases )
+            {
+                CloseableUtils.closeQuietly(l);
+            }
+            CloseableUtils.closeQuietly(client);
         }
     }
 }

@@ -20,10 +20,10 @@
 package org.apache.curator.framework.recipes.locks;
 
 import com.google.common.collect.Lists;
-import com.google.common.io.Closeables;
+import org.apache.curator.test.BaseClassForTests;
+import org.apache.curator.utils.CloseableUtils;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.recipes.BaseClassForTests;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.framework.state.ConnectionStateListener;
 import org.apache.curator.retry.ExponentialBackoffRetry;
@@ -96,7 +96,7 @@ public abstract class TestInterProcessMutexBase extends BaseClassForTests
 
                                     server.stop();
                                     Assert.assertTrue(timing.awaitLatch(latch));
-                                    server = new TestingServer(server.getPort(), server.getTempDirectory());
+                                    server.restart();
                                 }
                             }
                             finally
@@ -123,7 +123,7 @@ public abstract class TestInterProcessMutexBase extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -463,8 +463,8 @@ public abstract class TestInterProcessMutexBase extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(client1);
-            Closeables.closeQuietly(client2);
+            CloseableUtils.closeQuietly(client1);
+            CloseableUtils.closeQuietly(client2);
         }
     }
 }

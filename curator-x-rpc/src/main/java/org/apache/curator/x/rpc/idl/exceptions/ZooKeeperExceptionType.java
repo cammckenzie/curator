@@ -16,27 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.curator.framework.recipes;
+package org.apache.curator.x.rpc.idl.exceptions;
 
-import org.apache.curator.test.TestingServer;
-import org.apache.curator.utils.DebugUtils;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-
-public class BaseClassForTests
+public enum ZooKeeperExceptionType
 {
-    protected TestingServer server;
-
-    @BeforeMethod
-    public void     setup() throws Exception
-    {
-        System.setProperty(DebugUtils.PROPERTY_DONT_LOG_CONNECTION_ISSUES, "true");
-        server = new TestingServer();
-    }
-
-    @AfterMethod
-    public void     teardown() throws Exception
-    {
-        server.close();
-    }
+    SYSTEMERROR,
+    RUNTIMEINCONSISTENCY,
+    DATAINCONSISTENCY,
+    CONNECTIONLOSS,
+    MARSHALLINGERROR,
+    UNIMPLEMENTED,
+    OPERATIONTIMEOUT,
+    BADARGUMENTS,
+    APIERROR,
+    NOAUTH,
+    NOCHILDRENFOREPHEMERALS,
+    INVALIDACL,
+    AUTHFAILED,
+    SESSIONEXPIRED,
+    INVALIDCALLBACK,
+    SESSIONMOVED,
+    NOTREADONLY
 }

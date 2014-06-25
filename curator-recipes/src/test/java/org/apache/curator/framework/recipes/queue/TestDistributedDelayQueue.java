@@ -18,10 +18,10 @@
  */
 package org.apache.curator.framework.recipes.queue;
 
-import com.google.common.io.Closeables;
+import org.apache.curator.test.BaseClassForTests;
+import org.apache.curator.utils.CloseableUtils;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.recipes.BaseClassForTests;
 import org.apache.curator.framework.state.ConnectionStateListener;
 import org.apache.curator.retry.RetryOneTime;
 import org.apache.curator.test.Timing;
@@ -59,8 +59,8 @@ public class TestDistributedDelayQueue extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(queue);
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(queue);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -86,8 +86,8 @@ public class TestDistributedDelayQueue extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(queue);
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(queue);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -124,8 +124,8 @@ public class TestDistributedDelayQueue extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(queue);
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(queue);
+            CloseableUtils.closeQuietly(client);
         }
     }
 

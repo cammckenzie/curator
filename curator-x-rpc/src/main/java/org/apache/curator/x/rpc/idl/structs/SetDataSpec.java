@@ -16,34 +16,43 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.curator.framework.imps;
+package org.apache.curator.x.rpc.idl.structs;
 
-import org.apache.curator.test.TestingServer;
-import org.apache.curator.utils.DebugUtils;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import com.facebook.swift.codec.ThriftField;
+import com.facebook.swift.codec.ThriftStruct;
 
-public class BaseClassForTests
+@ThriftStruct
+public class SetDataSpec
 {
-    protected TestingServer server;
+    @ThriftField(1)
+    public String path;
 
-    @BeforeMethod
-    public void     setup() throws Exception
+    @ThriftField(2)
+    public boolean watched;
+
+    @ThriftField(3)
+    public String asyncContext;
+
+    @ThriftField(4)
+    public boolean compressed;
+
+    @ThriftField(5)
+    public Version version;
+
+    @ThriftField(6)
+    public byte[] data;
+
+    public SetDataSpec()
     {
-        System.setProperty(DebugUtils.PROPERTY_DONT_LOG_CONNECTION_ISSUES, "true");
-        server = new TestingServer();
     }
 
-    @AfterMethod
-    public void     teardown()
+    public SetDataSpec(String path, boolean watched, String asyncContext, boolean compressed, Version version, byte[] data)
     {
-        try
-        {
-            server.close();
-        }
-        catch ( Throwable e )
-        {
-            e.printStackTrace();
-        }
+        this.path = path;
+        this.watched = watched;
+        this.asyncContext = asyncContext;
+        this.compressed = compressed;
+        this.version = version;
+        this.data = data;
     }
 }

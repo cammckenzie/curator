@@ -48,17 +48,13 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * <p>
- * A utility that attempts to keep all data from all children of a ZK path locally cached. This
- * class will watch the ZK path, respond to update/create/delete events, pull down the data, etc.
- * You can register a listener that will get notified when changes occur.
- * </p>
- * <p/>
- * <p>
- * <b>IMPORTANT</b> - it's not possible to stay transactionally in sync. Users of this class must be
- * prepared for false-positives and false-negatives. Additionally, always use the version number
- * when updating data to avoid overwriting another process' change.
- * </p>
+ * <p>A utility that attempts to keep all data from all children of a ZK path locally cached. This class
+ * will watch the ZK path, respond to update/create/delete events, pull down the data, etc. You can
+ * register a listener that will get notified when changes occur.</p>
+ * <p></p>
+ * <p><b>IMPORTANT</b> - it's not possible to stay transactionally in sync. Users of this class must
+ * be prepared for false-positives and false-negatives. Additionally, always use the version number
+ * when updating data to avoid overwriting another process' change.</p>
  */
 @SuppressWarnings("NullableProblems")
 public class PathChildrenCache implements Closeable
@@ -86,7 +82,9 @@ public class PathChildrenCache implements Closeable
 
     private static final ChildData NULL_CHILD_DATA = new ChildData(null, null, null);
 
-    private final Watcher childrenWatcher = new Watcher()
+    private static final boolean USE_EXISTS = Boolean.getBoolean("curator-path-children-cache-use-exists");
+
+    private volatile Watcher childrenWatcher = new Watcher()
     {
 
         @Override
@@ -96,7 +94,7 @@ public class PathChildrenCache implements Closeable
         }
     };
 
-    private final Watcher dataWatcher = new Watcher()
+    private volatile Watcher dataWatcher = new Watcher()
     {
 
         @Override
@@ -123,7 +121,7 @@ public class PathChildrenCache implements Closeable
     @VisibleForTesting
     volatile Exchanger<Object> rebuildTestExchanger;
 
-    private final ConnectionStateListener connectionStateListener = new ConnectionStateListener()
+    private volatile ConnectionStateListener connectionStateListener = new ConnectionStateListener()
     {
 
         @Override
@@ -414,7 +412,17 @@ public class PathChildrenCache implements Closeable
         if ( state.compareAndSet(State.STARTED, State.CLOSED) )
         {
             client.getConnectionStateListenable().removeListener(connectionStateListener);
+            listeners.clear();
             executorService.close();
+            client.clearWatcherReferences(childrenWatcher);
+            client.clearWatcherReferences(dataWatcher);
+
+            // TODO
+            // This seems to enable even more GC - I'm not sure why yet - it
+            // has something to do with Guava's cache and circular references
+            connectionStateListener = null;
+            childrenWatcher = null;
+            dataWatcher = null;
         }
     }
 
@@ -512,7 +520,7 @@ public class PathChildrenCache implements Closeable
         POST_INITIALIZED
     }
 
-    void refresh(RefreshMode mode) throws Exception
+    void refresh(final RefreshMode mode) throws Exception
     {
         internalRefresh(mode, path);
     }
@@ -540,19 +548,19 @@ public class PathChildrenCache implements Closeable
 
     void getDataAndStat(final String fullPath) throws Exception
     {
-        BackgroundCallback existsCallback = new BackgroundCallback()
+        BackgroundCallback callback = new BackgroundCallback()
         {
 
             @Override
             public void processResult(CuratorFramework client, CuratorEvent event) throws Exception
             {
-                applyNewData(fullPath, event.getResultCode(), event.getStat(), null);
+                applyNewData(fullPath, event.getResultCode(), event.getStat(), cacheData ? event.getData() : null);
             }
         };
 
-        BackgroundCallback getDataCallback = new BackgroundCallback()
+        if ( USE_EXISTS && !cacheData )
         {
-
+            /*
             @Override
             public void processResult(CuratorFramework client, CuratorEvent event) throws Exception
             {
@@ -560,20 +568,20 @@ public class PathChildrenCache implements Closeable
             }
         };
 
-        if ( cacheData )
-        {
-            if ( dataIsCompressed )
-            {
-                client.getData().decompressed().usingWatcher(dataWatcher).inBackground(getDataCallback).forPath(fullPath);
-            }
-            else
-            {
-                client.getData().usingWatcher(dataWatcher).inBackground(getDataCallback).forPath(fullPath);
-            }
+        if ( cacheData )*/
+            client.checkExists().usingWatcher(dataWatcher).inBackground(callback).forPath(fullPath);
         }
         else
         {
-            client.checkExists().usingWatcher(dataWatcher).inBackground(existsCallback).forPath(fullPath);
+            // always use getData() instead of exists() to avoid leaving unneeded watchers which is a type of resource leak
+            if ( dataIsCompressed && cacheData )
+            {
+                client.getData().decompressed().usingWatcher(dataWatcher).inBackground(callback).forPath(fullPath);
+            }
+            else
+            {
+                client.getData().usingWatcher(dataWatcher).inBackground(callback).forPath(fullPath);
+            }
         }
     }
 
@@ -838,15 +846,14 @@ public class PathChildrenCache implements Closeable
 
     /**
      * Submits a runnable to the executor.
-     * <p/>
-     * This method is synchronized because it has to check state about whether this instance is
-     * still open. Without this check there is a race condition with the dataWatchers that get set.
-     * Even after this object is closed() it can still be called by those watchers, because the
-     * close() method cannot actually disable the watcher.
-     * <p/>
-     * The synchronization overhead should be minimal if non-existant as this is generally only
-     * called from the ZK client thread and will only contend if close() is called in parallel with
-     * an update, and that's the exact state we want to protect from.
+     * <p>
+     * This method is synchronized because it has to check state about whether this instance is still open.  Without this check
+     * there is a race condition with the dataWatchers that get set.  Even after this object is closed() it can still be
+     * called by those watchers, because the close() method cannot actually disable the watcher.
+     * <p>
+     * The synchronization overhead should be minimal if non-existant as this is generally only called from the
+     * ZK client thread and will only contend if close() is called in parallel with an update, and that's the exact state
+     * we want to protect from.
      *
      * @param command The runnable to run
      */

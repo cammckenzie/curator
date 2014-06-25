@@ -20,7 +20,7 @@
 package org.apache.curator.framework.imps;
 
 import com.google.common.collect.Queues;
-import com.google.common.io.Closeables;
+import org.apache.curator.utils.CloseableUtils;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.state.ConnectionState;
@@ -58,11 +58,13 @@ public class TestNeverConnected
             client.create().inBackground().forPath("/");
 
             ConnectionState polled = queue.poll(timing.forWaiting().seconds(), TimeUnit.SECONDS);
+            Assert.assertEquals(polled, ConnectionState.SUSPENDED);
+            polled = queue.poll(timing.forWaiting().seconds(), TimeUnit.SECONDS);
             Assert.assertEquals(polled, ConnectionState.LOST);
         }
         finally
         {
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(client);
         }
     }
 }

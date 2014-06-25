@@ -18,19 +18,18 @@
  */
 package org.apache.curator.framework.imps;
 
-import com.google.common.io.Closeables;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.framework.state.ConnectionStateListener;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.curator.retry.RetryOneTime;
-import org.apache.curator.test.TestingServer;
+import org.apache.curator.test.BaseClassForTests;
 import org.apache.curator.test.Timing;
+import org.apache.curator.utils.CloseableUtils;
 import org.apache.zookeeper.KeeperException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import java.io.File;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 
@@ -81,7 +80,7 @@ public class TestFailedDeleteManager extends BaseClassForTests
 
             timing.sleepABit();
 
-            server = new TestingServer(server.getPort(), server.getTempDirectory());
+            server.restart();
             Assert.assertTrue(timing.awaitLatch(latch));
 
             timing.sleepABit();
@@ -90,7 +89,7 @@ public class TestFailedDeleteManager extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -144,7 +143,7 @@ public class TestFailedDeleteManager extends BaseClassForTests
 
             timing.sleepABit();
 
-            server = new TestingServer(server.getPort(), server.getTempDirectory());
+            server.restart();
             Assert.assertTrue(timing.awaitLatch(latch));
 
             timing.sleepABit();
@@ -153,7 +152,7 @@ public class TestFailedDeleteManager extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -207,7 +206,7 @@ public class TestFailedDeleteManager extends BaseClassForTests
 
             timing.sleepABit();
 
-            server = new TestingServer(server.getPort(), server.getTempDirectory());
+            server.restart();
             Assert.assertTrue(timing.awaitLatch(latch));
 
             timing.sleepABit();
@@ -216,7 +215,7 @@ public class TestFailedDeleteManager extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -235,11 +234,7 @@ public class TestFailedDeleteManager extends BaseClassForTests
             client.create().creatingParentsIfNeeded().forPath(PATH);
             Assert.assertNotNull(client.checkExists().forPath(PATH));
 
-            File    serverDir = server.getTempDirectory();
-            int     serverPort = server.getPort();
-
             server.stop(); // cause the next delete to fail
-            server = null;
             try
             {
                 client.delete().forPath(PATH);
@@ -250,11 +245,10 @@ public class TestFailedDeleteManager extends BaseClassForTests
                 // expected
             }
             
-            server = new TestingServer(serverPort, serverDir);
+            server.restart();
             Assert.assertNotNull(client.checkExists().forPath(PATH));
 
             server.stop(); // cause the next delete to fail
-            server = null;
             try
             {
                 client.delete().guaranteed().forPath(PATH);
@@ -265,7 +259,7 @@ public class TestFailedDeleteManager extends BaseClassForTests
                 // expected
             }
 
-            server = new TestingServer(serverPort, serverDir);
+            server.restart();
 
             final int       TRIES = 5;
             for ( int i = 0; i < TRIES; ++i )
@@ -279,7 +273,7 @@ public class TestFailedDeleteManager extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(client);
         }
     }
 }

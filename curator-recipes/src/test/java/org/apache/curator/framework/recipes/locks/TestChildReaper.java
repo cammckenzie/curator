@@ -18,10 +18,10 @@
  */
 package org.apache.curator.framework.recipes.locks;
 
-import com.google.common.io.Closeables;
+import org.apache.curator.test.BaseClassForTests;
+import org.apache.curator.utils.CloseableUtils;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.recipes.BaseClassForTests;
 import org.apache.curator.retry.RetryOneTime;
 import org.apache.curator.test.Timing;
 import org.apache.zookeeper.data.Stat;
@@ -64,8 +64,8 @@ public class TestChildReaper extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(reaper);
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(reaper);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -94,8 +94,8 @@ public class TestChildReaper extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(reaper);
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(reaper);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -134,8 +134,8 @@ public class TestChildReaper extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(reaper);
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(reaper);
+            CloseableUtils.closeQuietly(client);
         }
     }
 }

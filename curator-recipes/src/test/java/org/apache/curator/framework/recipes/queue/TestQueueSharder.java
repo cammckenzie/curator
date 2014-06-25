@@ -19,16 +19,16 @@
 package org.apache.curator.framework.recipes.queue;
 
 import com.google.common.collect.Sets;
-import com.google.common.io.Closeables;
+import org.apache.commons.math.stat.descriptive.SummaryStatistics;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.recipes.BaseClassForTests;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.framework.state.ConnectionStateListener;
 import org.apache.curator.retry.RetryOneTime;
+import org.apache.curator.test.BaseClassForTests;
 import org.apache.curator.test.Timing;
-import junit.framework.Assert;
-import org.apache.commons.math.stat.descriptive.SummaryStatistics;
+import org.apache.curator.utils.CloseableUtils;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -90,8 +90,8 @@ public class TestQueueSharder extends BaseClassForTests
         finally
         {
             timing.sleepABit(); // let queue clear
-            Closeables.closeQuietly(sharder);
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(sharder);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -117,7 +117,7 @@ public class TestQueueSharder extends BaseClassForTests
             {
                 sharder1.getQueue().put(Integer.toString(i));
             }
-            timing.forWaiting().sleepABit();
+            timing.sleepABit();
 
             Assert.assertTrue((sharder1.getShardQty() > 1) || (sharder2.getShardQty() > 1));
             timing.forWaiting().sleepABit();
@@ -126,9 +126,9 @@ public class TestQueueSharder extends BaseClassForTests
         finally
         {
             timing.sleepABit(); // let queues clear
-            Closeables.closeQuietly(sharder1);
-            Closeables.closeQuietly(sharder2);
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(sharder1);
+            CloseableUtils.closeQuietly(sharder2);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -183,8 +183,8 @@ public class TestQueueSharder extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(sharder);
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(sharder);
+            CloseableUtils.closeQuietly(client);
         }
     }
 

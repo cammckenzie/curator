@@ -18,7 +18,8 @@
  */
 package org.apache.curator.framework.imps;
 
-import com.google.common.io.Closeables;
+import org.apache.curator.test.BaseClassForTests;
+import org.apache.curator.utils.CloseableUtils;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.api.CompressionProvider;
@@ -76,7 +77,7 @@ public class TestCompression extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(client);
         }
 
         Assert.assertEquals(compressCounter.get(), 1);
@@ -101,7 +102,7 @@ public class TestCompression extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -122,7 +123,7 @@ public class TestCompression extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(client);
         }
     }
 }

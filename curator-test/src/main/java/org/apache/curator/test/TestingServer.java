@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.curator.test;
 
 import java.io.Closeable;
@@ -42,22 +43,45 @@ public class TestingServer implements Closeable
      */
     public TestingServer() throws Exception
     {
-        this(-1, null);
+        this(-1, null, true);
     }
 
     /**
-     * Create the server using the given port
+     * Create the server using a random port
+     *
+     * @param start True if the server should be started, false otherwise
+     * @throws Exception errors
+     */
+    public TestingServer(boolean start) throws Exception
+    {
+        this(-1, null, start);
+    }
+
+    /**
+     * Create and start the server using the given port
      *
      * @param port the port
      * @throws Exception errors
      */
     public TestingServer(int port) throws Exception
     {
-        this(port, null);
+        this(port, null, true);
     }
 
     /**
      * Create the server using the given port
+     *
+     * @param port  the port
+     * @param start True if the server should be started, false otherwise
+     * @throws Exception errors
+     */
+    public TestingServer(int port, boolean start) throws Exception
+    {
+        this(port, null, start);
+    }
+
+    /**
+     * Create and start the server using the given port
      *
      * @param port          the port
      * @param tempDirectory directory to use
@@ -65,14 +89,38 @@ public class TestingServer implements Closeable
      */
     public TestingServer(int port, File tempDirectory) throws Exception
     {
-        this(new InstanceSpec(tempDirectory, port, -1, -1, true, -1));
+        this(port, tempDirectory, true);
     }
 
-    public TestingServer(InstanceSpec spec) throws Exception
+    /**
+     * Create the server using the given port
+     *
+     * @param port          the port
+     * @param tempDirectory directory to use
+     * @param start         True if the server should be started, false otherwise
+     * @throws Exception errors
+     */
+    public TestingServer(int port, File tempDirectory, boolean start) throws Exception
+    {
+        this(new InstanceSpec(tempDirectory, port, -1, -1, true, -1), start);
+    }
+
+    /**
+     * Create the server using the given port
+     *
+     * @param spec  instance details
+     * @param start True if the server should be started, false otherwise
+     * @throws Exception errors
+     */
+    public TestingServer(InstanceSpec spec, boolean start) throws Exception
     {
         this.spec = spec;
         testingZooKeeperServer = new TestingZooKeeperServer(new QuorumConfigBuilder(spec));
-        testingZooKeeperServer.start();
+
+        if ( start )
+        {
+            testingZooKeeperServer.start();
+        }
     }
 
     /**
@@ -96,11 +144,34 @@ public class TestingServer implements Closeable
     }
 
     /**
+     * Start the server
+     *
+     * @throws Exception
+     */
+    public void start() throws Exception
+    {
+        testingZooKeeperServer.start();
+    }
+
+    /**
      * Stop the server without deleting the temp directory
      */
     public void stop() throws IOException
     {
         testingZooKeeperServer.stop();
+    }
+
+    /**
+     * Restart the server. If the server is currently running it will be stopped
+     * and restarted. If it's not currently running then it will be started. If
+     * it has been closed (had close() called on it) then an exception will be
+     * thrown.
+     *
+     * @throws Exception
+     */
+    public void restart() throws Exception
+    {
+        testingZooKeeperServer.restart();
     }
 
     /**

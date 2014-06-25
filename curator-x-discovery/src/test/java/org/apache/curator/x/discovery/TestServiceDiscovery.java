@@ -20,12 +20,12 @@ package org.apache.curator.x.discovery;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.common.io.Closeables;
+import org.apache.curator.test.BaseClassForTests;
+import org.apache.curator.utils.CloseableUtils;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.RetryOneTime;
 import org.apache.curator.test.KillSession;
-import org.apache.curator.test.TestingServer;
 import org.apache.curator.test.Timing;
 import org.apache.curator.x.discovery.details.JsonInstanceSerializer;
 import org.apache.curator.x.discovery.details.ServiceDiscoveryImpl;
@@ -38,7 +38,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 
-public class TestServiceDiscovery
+public class TestServiceDiscovery extends BaseClassForTests
 {
     private static final Comparator<ServiceInstance<Void>>      comparator = new Comparator<ServiceInstance<Void>>()
     {
@@ -53,8 +53,6 @@ public class TestServiceDiscovery
     public void         testCrashedServerMultiInstances() throws Exception
     {
         List<Closeable>     closeables = Lists.newArrayList();
-        TestingServer       server = new TestingServer();
-        closeables.add(server);
         try
         {
             Timing              timing = new Timing();
@@ -84,7 +82,7 @@ public class TestServiceDiscovery
             KillSession.kill(client.getZookeeperClient().getZooKeeper(), server.getConnectString());
             server.stop();
 
-            server = new TestingServer(server.getPort(), server.getTempDirectory());
+            server.restart();
             closeables.add(server);
 
             timing.acquireSemaphore(semaphore, 2);
@@ -94,7 +92,7 @@ public class TestServiceDiscovery
         {
             for ( Closeable c : closeables )
             {
-                Closeables.closeQuietly(c);
+                CloseableUtils.closeQuietly(c);
             }
         }
     }
@@ -103,8 +101,6 @@ public class TestServiceDiscovery
     public void         testCrashedServer() throws Exception
     {
         List<Closeable>     closeables = Lists.newArrayList();
-        TestingServer       server = new TestingServer();
-        closeables.add(server);
         try
         {
             Timing              timing = new Timing();
@@ -132,7 +128,7 @@ public class TestServiceDiscovery
             KillSession.kill(client.getZookeeperClient().getZooKeeper(), server.getConnectString());
             server.stop();
 
-            server = new TestingServer(server.getPort(), server.getTempDirectory());
+            server.restart();
             closeables.add(server);
 
             timing.acquireSemaphore(semaphore);
@@ -142,7 +138,7 @@ public class TestServiceDiscovery
         {
             for ( Closeable c : closeables )
             {
-                Closeables.closeQuietly(c);
+                CloseableUtils.closeQuietly(c);
             }
         }
     }
@@ -151,8 +147,6 @@ public class TestServiceDiscovery
     public void         testCrashedInstance() throws Exception
     {
         List<Closeable>     closeables = Lists.newArrayList();
-        TestingServer       server = new TestingServer();
-        closeables.add(server);
         try
         {
             Timing              timing = new Timing();
@@ -178,7 +172,7 @@ public class TestServiceDiscovery
             Collections.reverse(closeables);
             for ( Closeable c : closeables )
             {
-                Closeables.closeQuietly(c);
+                CloseableUtils.closeQuietly(c);
             }
         }
     }
@@ -190,8 +184,6 @@ public class TestServiceDiscovery
         final String        SERVICE_TWO = "two";
 
         List<Closeable>     closeables = Lists.newArrayList();
-        TestingServer       server = new TestingServer();
-        closeables.add(server);
         try
         {
             CuratorFramework client = CuratorFrameworkFactory.newClient(server.getConnectString(), new RetryOneTime(1));
@@ -236,7 +228,7 @@ public class TestServiceDiscovery
             Collections.reverse(closeables);
             for ( Closeable c : closeables )
             {
-                Closeables.closeQuietly(c);
+                CloseableUtils.closeQuietly(c);
             }
         }
     }
@@ -245,8 +237,6 @@ public class TestServiceDiscovery
     public void         testBasic() throws Exception
     {
         List<Closeable>     closeables = Lists.newArrayList();
-        TestingServer       server = new TestingServer();
-        closeables.add(server);
         try
         {
             CuratorFramework client = CuratorFrameworkFactory.newClient(server.getConnectString(), new RetryOneTime(1));
@@ -269,7 +259,7 @@ public class TestServiceDiscovery
             Collections.reverse(closeables);
             for ( Closeable c : closeables )
             {
-                Closeables.closeQuietly(c);
+                CloseableUtils.closeQuietly(c);
             }
         }
     }

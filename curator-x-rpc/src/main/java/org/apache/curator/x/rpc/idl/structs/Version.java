@@ -16,27 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.curator;
+package org.apache.curator.x.rpc.idl.structs;
 
-import org.apache.curator.test.TestingServer;
-import org.apache.curator.utils.DebugUtils;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import com.facebook.swift.codec.ThriftField;
+import com.facebook.swift.codec.ThriftStruct;
 
-public class BaseClassForTests
+@ThriftStruct
+public class Version
 {
-    protected TestingServer server;
+    @ThriftField(1)
+    public int version;
 
-    @BeforeMethod
-    public void     setup() throws Exception
+    public Version()
     {
-        System.setProperty(DebugUtils.PROPERTY_DONT_LOG_CONNECTION_ISSUES, "true");
-        server = new TestingServer();
     }
 
-    @AfterMethod
-    public void     teardown() throws Exception
+    public Version(int version)
     {
-        server.close();
+        this.version = version;
     }
 }

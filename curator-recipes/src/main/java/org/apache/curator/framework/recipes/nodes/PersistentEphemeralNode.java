@@ -25,6 +25,8 @@ import org.apache.curator.framework.api.ACLBackgroundPathAndBytesable;
 import org.apache.curator.framework.api.BackgroundCallback;
 import org.apache.curator.framework.api.CreateModable;
 import org.apache.curator.framework.api.CuratorEvent;
+import org.apache.curator.framework.state.ConnectionState;
+import org.apache.curator.framework.state.ConnectionStateListener;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
@@ -43,7 +45,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * A persistent ephemeral node is an ephemeral node that attempts to stay present in
  * ZooKeeper, even through connection and session interruptions.
  * </p>
- * <p/>
  * <p>
  * Thanks to bbeck (https://github.com/bbeck) for the initial coding and design
  * </p>
@@ -74,6 +75,17 @@ public class PersistentEphemeralNode implements Closeable
         public void processResult(CuratorFramework client, CuratorEvent event) throws Exception
         {
             if ( event.getResultCode() == KeeperException.Code.NONODE.intValue() )
+            {
+                createNode();
+            }
+        }
+    };
+    private final ConnectionStateListener connectionStateListener = new ConnectionStateListener()
+    {
+        @Override
+        public void stateChanged(CuratorFramework client, ConnectionState newState)
+        {
+            if ( newState == ConnectionState.RECONNECTED )
             {
                 createNode();
             }
@@ -226,6 +238,7 @@ public class PersistentEphemeralNode implements Closeable
     {
         Preconditions.checkState(state.compareAndSet(State.LATENT, State.STARTED), "Already started");
 
+        client.getConnectionStateListenable().addListener(connectionStateListener);
         createNode();
     }
 
@@ -253,6 +266,8 @@ public class PersistentEphemeralNode implements Closeable
         {
             return;
         }
+
+        client.getConnectionStateListenable().removeListener(connectionStateListener);
 
         try
         {

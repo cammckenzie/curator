@@ -18,7 +18,7 @@
  */
 package org.apache.curator;
 
-import com.google.common.io.Closeables;
+import org.apache.curator.utils.CloseableUtils;
 import org.apache.curator.drivers.TracerDriver;
 import org.apache.curator.ensemble.EnsembleProvider;
 import org.apache.curator.utils.DebugUtils;
@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 class ConnectionState implements Watcher, Closeable
@@ -49,6 +50,7 @@ class ConnectionState implements Watcher, Closeable
     private final AtomicReference<TracerDriver> tracer;
     private final Queue<Exception> backgroundExceptions = new ConcurrentLinkedQueue<Exception>();
     private final Queue<Watcher> parentWatchers = new ConcurrentLinkedQueue<Watcher>();
+    private final AtomicLong instanceIndex = new AtomicLong();
     private volatile long connectionStartMs = 0;
 
     ConnectionState(ZookeeperFactory zookeeperFactory, EnsembleProvider ensembleProvider, int sessionTimeoutMs, int connectionTimeoutMs, Watcher parentWatcher, AtomicReference<TracerDriver> tracer, boolean canBeReadOnly)
@@ -106,7 +108,7 @@ class ConnectionState implements Watcher, Closeable
     {
         log.debug("Closing");
 
-        Closeables.closeQuietly(ensembleProvider);
+        CloseableUtils.closeQuietly(ensembleProvider);
         try
         {
             zooKeeper.closeAndClear();
@@ -129,6 +131,11 @@ class ConnectionState implements Watcher, Closeable
     void removeParentWatcher(Watcher watcher)
     {
         parentWatchers.remove(watcher);
+    }
+
+    long getInstanceIndex()
+    {
+        return instanceIndex.get();
     }
 
     @Override
@@ -203,6 +210,8 @@ class ConnectionState implements Watcher, Closeable
     private synchronized void reset() throws Exception
     {
         log.debug("reset");
+
+        instanceIndex.incrementAndGet();
 
         isConnected.set(false);
         connectionStartMs = System.currentTimeMillis();

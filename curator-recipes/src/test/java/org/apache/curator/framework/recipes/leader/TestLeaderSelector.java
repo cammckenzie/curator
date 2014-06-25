@@ -20,15 +20,15 @@
 package org.apache.curator.framework.recipes.leader;
 
 import com.google.common.collect.Lists;
-import com.google.common.io.Closeables;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.recipes.BaseClassForTests;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.retry.RetryOneTime;
+import org.apache.curator.test.BaseClassForTests;
 import org.apache.curator.test.KillSession;
 import org.apache.curator.test.TestingServer;
 import org.apache.curator.test.Timing;
+import org.apache.curator.utils.CloseableUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import org.testng.internal.annotations.Sets;
@@ -40,6 +40,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.testng.Assert.fail;
 
 public class TestLeaderSelector extends BaseClassForTests
 {
@@ -77,8 +79,8 @@ public class TestLeaderSelector extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(selector);
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(selector);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -125,8 +127,8 @@ public class TestLeaderSelector extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(selector);
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(selector);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -180,15 +182,15 @@ public class TestLeaderSelector extends BaseClassForTests
             timing.sleepABit();
             debugLeadershipWaitLatch.countDown();
 
-            server = new TestingServer(server.getPort(), server.getTempDirectory());
+            server.restart();
             Assert.assertTrue(timing.awaitLatch(reconnectedLatch));
 
             Assert.assertFalse(takeLeadershipLatch.await(3, TimeUnit.SECONDS));
         }
         finally
         {
-            Closeables.closeQuietly(selector);
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(selector);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -225,8 +227,8 @@ public class TestLeaderSelector extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(selector);
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(selector);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
@@ -269,13 +271,13 @@ public class TestLeaderSelector extends BaseClassForTests
         }
         finally
         {
-            Closeables.closeQuietly(selector);
-            Closeables.closeQuietly(client);
+            CloseableUtils.closeQuietly(selector);
+            CloseableUtils.closeQuietly(client);
         }
     }
 
     @Test
-    public void testKillSession() throws Exception
+    public void testKillSessionThenCloseShouldElectNewLeader() throws Exception
     {
         final Timing timing = new Timing();
 
@@ -286,7 +288,7 @@ public class TestLeaderSelector extends BaseClassForTests
             final Semaphore semaphore = new Semaphore(0);
             final CountDownLatch interruptedLatch = new CountDownLatch(1);
             final AtomicInteger leaderCount = new AtomicInteger(0);
-            LeaderSelectorListener listener = new LeaderSelectorListener()
+            LeaderSelectorListener listener = new LeaderSelectorListenerAdapter()
             {
                 @Override
                 public void takeLeadership(CuratorFramework client) throws Exception
@@ -297,7 +299,7 @@ public class TestLeaderSelector extends BaseClassForTests
                         semaphore.release();
                         try
                         {
-                            Thread.sleep(1000000);
+                            Thread.currentThread().join();
                         }
                         catch ( InterruptedException e )
                         {
@@ -310,18 +312,12 @@ public class TestLeaderSelector extends BaseClassForTests
                         leaderCount.decrementAndGet();
                     }
                 }
-
-                @Override
-                public void stateChanged(CuratorFramework client, ConnectionState newState)
-                {
-                    if ( newState == ConnectionState.LOST )
-                    {
-                        throw new CancelLeadershipException();
-                    }
-                }
             };
             LeaderSelector leaderSelector1 = new LeaderSelector(client, PATH_NAME, listener);
             LeaderSelector leaderSelector2 = new LeaderSelector(client, PATH_NAME, listener);
+
+            boolean leaderSelector1Closed = false;
+            boolean leaderSelector2Closed = false;
 
             leaderSelector1.start();
             leaderSelector2.start();
@@ -333,14 +329,142 @@ public class TestLeaderSelector extends BaseClassForTests
             Assert.assertTrue(timing.awaitLatch(interruptedLatch));
             timing.sleepABit();
 
-            leaderSelector1.requeue();
-            leaderSelector2.requeue();
+            boolean requeued1 = leaderSelector1.requeue();
+            boolean requeued2 = leaderSelector2.requeue();
+            Assert.assertTrue(requeued1);
+            Assert.assertTrue(requeued2);
 
             Assert.assertTrue(timing.acquireSemaphore(semaphore, 1));
             Assert.assertEquals(leaderCount.get(), 1);
 
-            leaderSelector1.close();
-            leaderSelector2.close();
+            if ( leaderSelector1.hasLeadership() )
+            {
+                leaderSelector1.close();
+                leaderSelector1Closed = true;
+            }
+            else if ( leaderSelector2.hasLeadership() )
+            {
+                leaderSelector2.close();
+                leaderSelector2Closed = true;
+            }
+            else
+            {
+                fail("No leaderselector has leadership!");
+            }
+
+            // Verify that the other leader took over leadership.
+            Assert.assertTrue(timing.acquireSemaphore(semaphore, 1));
+            Assert.assertEquals(leaderCount.get(), 1);
+
+            if ( !leaderSelector1Closed )
+            {
+                leaderSelector1.close();
+            }
+            if ( !leaderSelector2Closed )
+            {
+                leaderSelector2.close();
+            }
+        }
+        finally
+        {
+            client.close();
+        }
+    }
+
+    /**
+     * This is similar to TestLeaderSelector.testKillSessionThenCloseShouldElectNewLeader
+     * The differences are:
+     * it restarts the TestingServer instead of killing the session
+     * it uses autoRequeue instead of explicitly calling requeue
+     */
+    @Test
+    public void testKillServerThenCloseShouldElectNewLeader() throws Exception
+    {
+        final Timing timing = new Timing();
+
+        CuratorFramework client = CuratorFrameworkFactory.newClient(server.getConnectString(), timing.session(), timing.connection(), new RetryOneTime(1));
+        client.start();
+        try
+        {
+            final Semaphore semaphore = new Semaphore(0);
+            final CountDownLatch interruptedLatch = new CountDownLatch(1);
+            final AtomicInteger leaderCount = new AtomicInteger(0);
+            LeaderSelectorListener listener = new LeaderSelectorListenerAdapter()
+            {
+                @Override
+                public void takeLeadership(CuratorFramework client) throws Exception
+                {
+                    leaderCount.incrementAndGet();
+                    try
+                    {
+                        semaphore.release();
+                        try
+                        {
+                            Thread.currentThread().join();
+                        }
+                        catch ( InterruptedException e )
+                        {
+                            Thread.currentThread().interrupt();
+                            interruptedLatch.countDown();
+                        }
+                    }
+                    finally
+                    {
+                        leaderCount.decrementAndGet();
+                    }
+                }
+            };
+            LeaderSelector leaderSelector1 = new LeaderSelector(client, PATH_NAME, listener);
+            LeaderSelector leaderSelector2 = new LeaderSelector(client, PATH_NAME, listener);
+
+            boolean leaderSelector1Closed = false;
+            boolean leaderSelector2Closed = false;
+
+            leaderSelector1.autoRequeue();
+            leaderSelector2.autoRequeue();
+
+            leaderSelector1.start();
+            leaderSelector2.start();
+
+            Assert.assertTrue(timing.acquireSemaphore(semaphore, 1));
+
+            int port = server.getPort();
+            server.stop();
+            timing.sleepABit();
+            server = new TestingServer(port);
+            Assert.assertTrue(timing.awaitLatch(interruptedLatch));
+            timing.sleepABit();
+
+            Assert.assertTrue(timing.acquireSemaphore(semaphore, 1));
+            Assert.assertEquals(leaderCount.get(), 1);
+
+            if ( leaderSelector1.hasLeadership() )
+            {
+                leaderSelector1.close();
+                leaderSelector1Closed = true;
+            }
+            else if ( leaderSelector2.hasLeadership() )
+            {
+                leaderSelector2.close();
+                leaderSelector2Closed = true;
+            }
+            else
+            {
+                fail("No leaderselector has leadership!");
+            }
+
+            // Verify that the other leader took over leadership.
+            Assert.assertTrue(timing.acquireSemaphore(semaphore, 1));
+            Assert.assertEquals(leaderCount.get(), 1);
+
+            if ( !leaderSelector1Closed )
+            {
+                leaderSelector1.close();
+            }
+            if ( !leaderSelector2Closed )
+            {
+                leaderSelector2.close();
+            }
         }
         finally
         {
